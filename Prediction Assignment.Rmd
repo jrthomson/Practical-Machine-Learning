@@ -88,7 +88,7 @@ test.data <- test.data[, colSums(is.na(test.data)) == 0]
 
 # Partition the data
 
-Partition the data into a training data set and a validation data set (I chose 75% training). 
+Partition the data into a training data set and a validation data set (I chose 75% training) for cross validation purposes.
 
 Use the caret package: a set of functions that attempt to streamline the process for creating predictive models. The package continas tools for:
 
