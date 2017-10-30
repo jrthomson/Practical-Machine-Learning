@@ -1,0 +1,148 @@
+---
+title: "Practical Machine Learning - Prediction Assignment"
+author: "James Thomson"
+date: "October 26, 2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_knit$set(root.dir = "C:/Users/jthomson/Documents/")
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Load required libraries
+
+```{r}
+library(lattice)
+library(ggplot2)
+library(caret)
+library(randomForest)
+library(rpart)
+library(rpart.plot)
+library(rattle)
+```
+
+# Background
+
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement - a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, your goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the website here: http://web.archive.org/web/20161224072740/http:/groupware.les.inf.puc-rio.br/har (see the section on the Weight Lifting Exercise Dataset).
+
+# Data
+
+The training data for this project are available here:
+
+https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv
+
+The test data are available here:
+
+https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv
+
+
+The data for this project come from this source: http://web.archive.org/web/20161224072740/http:/groupware.les.inf.puc-rio.br/har.
+
+# Data Processing
+
+#### Load data - remove any #DIV/0! values
+
+```{r}
+train.data <- read.csv("pml-training.csv", na.strings = c("NA", "#DIV/0!", ""))
+test.data <- read.csv("pml-testing.csv", na.strings = c("NA", "#DIV/0!", ""))
+```
+
+#### Summary of the data
+
+```{r}
+dim(train.data)
+dim(test.data)
+```
+
+There are 19,622 observations in the training dataset; 20 in the test dataset. Both datasets contain 160 variables.
+
+# Clean data
+
+#### Remove the first 7 columns as they will not be needed for the prediction
+
+```{r}
+train.data <- train.data[ , -(1:7)]
+test.data <- test.data[ , -(1:7)]
+dim(train.data)
+dim(test.data)
+```
+
+We now have the same number of observations but only 153 variables.
+
+#### NA values 
+
+There are many observations that contain NA:
+
+```{r}
+table(is.na(train.data))
+table(is.na(test.data))
+```
+
+Replace those values with 0
+
+```{r}
+train.data <- train.data[, colSums(is.na(train.data)) == 0]
+test.data <- test.data[, colSums(is.na(test.data)) == 0]
+```
+
+# Partition the data
+
+Partition the data into a training data set and a validation data set (I chose 75% training). 
+
+Use the caret package: a set of functions that attempt to streamline the process for creating predictive models. The package continas tools for:
+
+- data splitting
+- pre-processing
+- feature selection
+- model tuning using resampling
+- variable importance estimation
+
+```{r}
+train.part <- createDataPartition(train.data$classe, p = 0.75, list = FALSE)
+train.set <- train.data[train.part, ]
+test.set <- train.data[-train.part, ]
+```
+
+# Modeling
+
+#### Decision Trees and Random Forests
+
+Decision trees are a type of model used for both classification and regression. Trees answer sequential questions which send us down a certain route of the tree given the answer. The model behaves with "if this than that" conditions ultimately yielding a specific result.
+
+A random forest is simply a collection of decision trees whose results are aggregated into one final result. Their ability to limit overfitting without substantially increasing error due to bias is why they are such powerful models.
+
+Source: https://medium.com/towards-data-science/decision-trees-and-random-forests-df0c3123f991
+
+#### Create a Random Forest model
+
+```{r}
+set.seed(12345)
+rfmodel <- randomForest(classe ~ ., data = train.set, method = 'class')
+rfpredict <- predict(rfmodel, test.set, type = "class")
+rfmodel
+confusionMatrix(rfpredict, test.set$classe)
+```
+
+Accuracy of over ~99% is very good. Out of sample error of ~0.5% is likewise excellent. In creating an almost perfect in-sample predictor we are capturing both signal AND the noise. This predictor may not woek as well on new data.
+
+#### Create decision tree
+
+```{r}
+dtmodel <- rpart(classe ~ ., data = train.set, method = "class")
+dtpredict <- predict(dtmodel, test.set, type = "class")
+confusionMatrix(dtpredict, test.set$classe)
+fancyRpartPlot(dtmodel)
+```
+
+The accuracy of the Random Forest model is significantly better than the decision tree (~99% versus ~71%). 
+
+# Prediction
+
+Use the model to predict the results for 20 tests
+
+```{r}
+prediction <- predict(rfmodel, test.data, type = "class")
+prediction
+```
+
